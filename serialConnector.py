@@ -13,15 +13,19 @@ class SerialConnector(object):
         self.endOfMessage = ">"
         self.payload = ""
 
-        self.connect()
-
     def __del__(self):
-        self.ser.close()
+        if self.ser:
+            self.ser.close()
 
     def connect(self):
-        self.ser = serial.Serial(
-            self.serialPortNane, self.baudrate, timeout=self.timeout
-        )
+        connected = True
+        try:
+            self.ser = serial.Serial(
+                self.serialPortNane, self.baudrate, timeout=self.timeout
+            )
+        except:
+            connected = False
+        return connected
 
     def waitForSerialData(self):
         receivedMessage = False
