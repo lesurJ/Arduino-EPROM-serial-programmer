@@ -64,6 +64,7 @@ if __name__ == "__main__":
             sc.waitForCode("WRITE-READY")
 
             chunkNumber = 0
+            i = -1
             for i in range(programSize // chunkSize):
                 print(
                     f"> Flashing EPROM, {100 * (i * chunkSize / programSize):3.0f}%",
