@@ -26,16 +26,12 @@ if __name__ == "__main__":
         description="This program read and write vintage EPROMs with the help of Arduino.",
     )
     parser.add_argument(
-        "machineCode",
+        "-f",
+        "--filename",
         type=str,
         help="the name of the machine code to flash on EPROM (.txt); all bytes must be on different lines.",
     )
     args = parser.parse_args()
-
-    chunkSize = 8
-    programSize, programCode = getProgramCode(args.machineCode)
-    print(f"Program is {programSize} bytes")
-    print(f"Program code is : {programCode}")
 
     sc = SerialConnector("/dev/tty.usbserial-1420")
     if sc.connect():
@@ -51,33 +47,40 @@ if __name__ == "__main__":
             "epromContents_before.txt",
         )
 
-        # 2. Write EPROM
-        _ = input("> Apply VPP and press Enter.")
-        print(
-            "> Flashing EPROM,   0%",
-            end="\r",
-        )
-        sc.sendCode("wm")
-        sc.waitForCode("WRITE-READY")
+        if args.filename is not None:
+            print("> Preparation for EPROM flashing")
+            chunkSize = 8
+            programSize, programCode = getProgramCode(args.filename)
+            print(f"Program is {programSize} bytes")
+            print(f"Program code is : {programCode}")
 
-        chunkNumber = 0
-        for i in range(programSize // chunkSize):
+            # 2. Write EPROM
+            _ = input("> Apply VPP and press Enter.")
             print(
-                f"> Flashing EPROM, {100 * (i * chunkSize / programSize):3.0f}%",
+                "> Flashing EPROM,   0%",
                 end="\r",
             )
-            sc.sendBytes(bytearray(programCode[chunkSize * i : chunkSize * (i + 1)]))
-            sc.waitForCode("CONTINUE")
+            sc.sendCode("wm")
+            sc.waitForCode("WRITE-READY")
 
-        sc.sendBytes(bytearray(programCode[chunkSize * (i + 1) :]))
-        sc.waitForCode("DONE")
-        print("> Flashing EPROM, 100%")
+            chunkNumber = 0
+            for i in range(programSize // chunkSize):
+                print(
+                    f"> Flashing EPROM, {100 * (i * chunkSize / programSize):3.0f}%",
+                    end="\r",
+                )
+                sc.sendBytes(bytearray(programCode[chunkSize * i : chunkSize * (i + 1)]))
+                sc.waitForCode("CONTINUE")
 
-        # 3. Read EPROM
-        _ = input("> Remove VPP and press Enter.")
-        print("> Reading EPROM")
-        sc.sendCode("rm")
-        sc.waitForSerialData()
-        saveMemoryContents(sc.payload, "epromContents_after.txt")
+            sc.sendBytes(bytearray(programCode[chunkSize * (i + 1) :]))
+            sc.waitForCode("DONE")
+            print("> Flashing EPROM, 100%")
+
+            # 3. Read EPROM
+            _ = input("> Remove VPP and press Enter.")
+            print("> Reading EPROM")
+            sc.sendCode("rm")
+            sc.waitForSerialData()
+            saveMemoryContents(sc.payload, "epromContents_after.txt")
     else:
         print("Unable to find/access selected serial port!")
