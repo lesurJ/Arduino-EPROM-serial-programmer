@@ -1,4 +1,6 @@
 import argparse
+import os
+
 from serialConnector import SerialConnector
 
 
@@ -33,7 +35,11 @@ if __name__ == "__main__":
     )
     args = parser.parse_args()
 
-    sc = SerialConnector("/dev/tty.usbserial-1420")
+    folder = "/dev/"
+    serialPort = [
+        item for item in os.listdir(folder) if item.startswith("tty.usbserial")
+    ]
+    sc = SerialConnector(folder + serialPort[0])
     if sc.connect():
         # Wait for arduino to initialize
         sc.waitForCode("READY")
@@ -70,7 +76,9 @@ if __name__ == "__main__":
                     f"> Flashing EPROM, {100 * (i * chunkSize / programSize):3.0f}%",
                     end="\r",
                 )
-                sc.sendBytes(bytearray(programCode[chunkSize * i : chunkSize * (i + 1)]))
+                sc.sendBytes(
+                    bytearray(programCode[chunkSize * i : chunkSize * (i + 1)])
+                )
                 sc.waitForCode("CONTINUE")
 
             sc.sendBytes(bytearray(programCode[chunkSize * (i + 1) :]))
