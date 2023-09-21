@@ -1,6 +1,8 @@
 2732FlasherBoard/.DS_Store
 2732FlasherBoard/2732FlasherBoard-backups/
 2732FlasherBoard/fp-info-cache
+*.vscode/
+.DS_Store
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
