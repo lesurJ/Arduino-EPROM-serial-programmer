@@ -32,24 +32,21 @@ void changeAccessMode(int mode, int eprom_type)
 {
     if (mode == read_mode)
     {
+        digitalWrite(nCE_PIN, LOW);
+        digitalWrite(nOE_PIN, LOW);
+        digitalWrite(nPGM_PIN, HIGH);
         for (int pin = msb_pin; pin <= lsb_pin; pin++)
         {
             pinMode(pin, INPUT);
         }
-        digitalWrite(nCE_PIN, LOW);
-        digitalWrite(nOE_PIN, LOW);
     }
     else
     {
-        for (int pin = msb_pin; pin <= lsb_pin; pin++)
-        {
-            pinMode(pin, OUTPUT);
-        }
-
         switch (eprom_type)
         {
         case 16:
             digitalWrite(nOE_PIN, HIGH);
+            digitalWrite(nCE_PIN, LOW);
             break;
 
         case 32:
@@ -57,19 +54,31 @@ void changeAccessMode(int mode, int eprom_type)
             break;
 
         case 64:
+            digitalWrite(nCE_PIN, LOW);
+            digitalWrite(nOE_PIN, HIGH);
+            digitalWrite(nPGM_PIN, HIGH);
             break;
 
         case 128:
+            digitalWrite(nCE_PIN, LOW);
+            digitalWrite(nOE_PIN, HIGH);
+            digitalWrite(nPGM_PIN, HIGH);
             break;
 
         case 256:
+            digitalWrite(nCE_PIN, HIGH);
+            digitalWrite(nOE_PIN, HIGH);
             break;
 
         case 512:
+            digitalWrite(nCE_PIN, HIGH);
             break;
         }
+        for (int pin = msb_pin; pin <= lsb_pin; pin++)
+        {
+            pinMode(pin, OUTPUT);
+        }
     }
-    delay(10); // wait for relay to firmly close
 }
 
 void generateProgramPulse(int eprom_type)
@@ -83,21 +92,37 @@ void generateProgramPulse(int eprom_type)
         break;
 
     case 32:
-        digitalWrite(nCE_PIN, LOW);
+        // digitalWrite(nCE_PIN, LOW);
         delay(50);
-        digitalWrite(nCE_PIN, HIGH);
+        // digitalWrite(nCE_PIN, HIGH);
         break;
 
     case 64:
+        // implement custom algo
+        // digitalWrite(nPGM_PIN, LOW);
+        delay(50);
+        // digitalWrite(nPGM_PIN, HIGH);
         break;
 
     case 128:
+        // implement custom algo
+        // digitalWrite(nPGM_PIN, LOW);
+        delay(50);
+        // digitalWrite(nPGM_PIN, HIGH);
         break;
 
     case 256:
+        // implement custom algo
+        // digitalWrite(nCE_PIN, LOW);
+        delay(50);
+        // digitalWrite(nCE_PIN, HIGH);
         break;
 
     case 512:
+        // implement custom algo
+        // digitalWrite(nCE_PIN, LOW);
+        delay(50);
+        // digitalWrite(nCE_PIN, HIGH);
         break;
     }
 }
@@ -141,6 +166,7 @@ void readMemory(int eprom_type)
     for (int addr = 0; addr < memory_size; addr++)
     {
         setAddress(addr);
+        delayMicroseconds(1); // typical access time is 200ns for EPROM
         byte data = 0;
         for (int pin = msb_pin; pin <= lsb_pin; pin++)
         {
@@ -151,19 +177,20 @@ void readMemory(int eprom_type)
     Serial.println(end_of_message);
 }
 
-void writeMemory(int eprom_type)
+void writeMemory(int eprom_type, int program_size)
 {
     changeAccessMode(write_mode, eprom_type);
+    Serial.println("<WRITE-READY>");
 
     int chunk_index = 0;
     bool transfer_is_done = false;
-    Serial.println("<WRITE-READY>");
     while (!transfer_is_done)
     {
         int rlen = Serial.readBytes(chunk_buffer, chunk_size);
         for (int chunk_addr = 0; chunk_addr < rlen; chunk_addr++)
         {
             setAddress(chunk_index + chunk_addr);
+            delayMicroseconds(2); // typical adress and data setup time
             for (int pin = lsb_pin; pin >= msb_pin; pin--)
             {
                 digitalWrite(pin, chunk_buffer[chunk_addr] & 1);
@@ -173,16 +200,10 @@ void writeMemory(int eprom_type)
         }
 
         chunk_index += rlen;
-        if (rlen < chunk_size)
-        {
-            transfer_is_done = true;
-            Serial.println("<DONE>");
-        }
-        else
-        {
-            Serial.println("<CONTINUE>");
-        }
+        transfer_is_done = (chunk_index == program_size);
+        Serial.println("<CONTINUE>");
     }
+    Serial.println("<DONE>");
 }
 
 // === END OF FUNCTIONS ===
@@ -202,14 +223,14 @@ void setup()
     digitalWrite(nSRCLR_pin, HIGH);
     digitalWrite(nCE_PIN, LOW);
     digitalWrite(nOE_PIN, LOW);
-    digitalWrite(nPGM_PIN, LOW);
+    digitalWrite(nPGM_PIN, HIGH);
 
     while (!Serial)
     {
         delay(10);
     }
 
-    Serial.println("<READY>");
+    Serial.println("<INIT>");
 }
 
 void loop()
@@ -221,13 +242,14 @@ void loop()
         int eprom_type = message.substring(0, idx).toInt();
         String command = message.substring(idx + 1);
 
-        if (command.equals("R"))
+        if (command.startsWith("R"))
         {
             readMemory(eprom_type);
         }
-        else if (command.equals("W"))
+        else if (command.startsWith("W"))
         {
-            writeMemory(eprom_type);
+            int program_size = command.substring(1).toInt();
+            writeMemory(eprom_type, program_size);
         }
     }
 }
