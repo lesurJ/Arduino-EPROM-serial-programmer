@@ -1,4 +1,4 @@
-import serial, time
+import serial
 
 
 class SerialConnector(object):
@@ -39,7 +39,6 @@ class SerialConnector(object):
                 receivedMessage = True
             else:
                 self.payload += currentChar
-            time.sleep(0.001)
 
     def waitForCode(self, code):
         ready = False
