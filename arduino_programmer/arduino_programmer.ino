@@ -20,7 +20,7 @@ byte chunk_buffer[chunk_size];
 
 // === FUNCTIONS ===
 
-void setAddress(int address)
+void setAddress(long address)
 {
     digitalWrite(RCLK_pin, LOW);
     shiftOut(SERIAL_pin, SRCLK_pin, LSBFIRST, (byte)address);
@@ -160,7 +160,7 @@ void readMemory(int eprom_type)
 {
     changeAccessMode(read_mode, eprom_type);
 
-    int memory_size = eprom_type * 128; // size in bytes = type * 1024 / 8
+    long memory_size = (long)eprom_type * 128; // size in bytes = type * 1024 / 8
 
     Serial.print(start_of_message);
     for (int addr = 0; addr < memory_size; addr++)
@@ -177,12 +177,12 @@ void readMemory(int eprom_type)
     Serial.println(end_of_message);
 }
 
-void writeMemory(int eprom_type, int program_size)
+void writeMemory(int eprom_type, long program_size)
 {
     changeAccessMode(write_mode, eprom_type);
     Serial.println("<WRITE-READY>");
 
-    int chunk_index = 0;
+    long chunk_index = 0;
     bool transfer_is_done = false;
     while (!transfer_is_done)
     {
@@ -248,7 +248,7 @@ void loop()
         }
         else if (command.startsWith("W"))
         {
-            int program_size = command.substring(1).toInt();
+            long program_size = command.substring(1).toInt();
             writeMemory(eprom_type, program_size);
         }
     }
