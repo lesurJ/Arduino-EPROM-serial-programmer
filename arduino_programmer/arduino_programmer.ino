@@ -156,25 +156,32 @@ String waitForSerialMessage(void)
     return message;
 }
 
-void readMemory(int eprom_type)
+void readMemory(int eprom_type, long memory_size)
 {
     changeAccessMode(read_mode, eprom_type);
 
-    long memory_size = (long)eprom_type * 128; // size in bytes = type * 1024 / 8
-
-    Serial.print(start_of_message);
-    for (int addr = 0; addr < memory_size; addr++)
+    long bytes_read = 0;
+    bool read_is_done = false;
+    while (!read_is_done)
     {
-        setAddress(addr);
-        delayMicroseconds(1); // typical access time is 200ns for EPROM
-        byte data = 0;
-        for (int pin = msb_pin; pin <= lsb_pin; pin++)
+        Serial.print(start_of_message);
+        for (int addr = 0; addr < chunk_size; addr++)
         {
-            data = (data << 1) + digitalRead(pin);
+            setAddress(bytes_read + addr);
+            delayMicroseconds(1); // typical access time is 200ns for EPROM
+            byte data = 0;
+            for (int pin = msb_pin; pin <= lsb_pin; pin++)
+            {
+                data = (data << 1) + digitalRead(pin);
+            }
+            Serial.println(data);
         }
-        Serial.println(data);
+        Serial.println(end_of_message);
+
+        bytes_read += chunk_size;
+        read_is_done = (bytes_read == memory_size);
     }
-    Serial.println(end_of_message);
+    Serial.println("<DONE>");
 }
 
 void writeMemory(int eprom_type, long program_size)
@@ -244,7 +251,8 @@ void loop()
 
         if (command.startsWith("R"))
         {
-            readMemory(eprom_type);
+            long memory_size = command.substring(1).toInt();
+            readMemory(eprom_type, memory_size);
         }
         else if (command.startsWith("W"))
         {

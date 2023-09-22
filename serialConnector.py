@@ -11,7 +11,6 @@ class SerialConnector(object):
 
         self.startOfMessage = "<"
         self.endOfMessage = ">"
-        self.payload = ""
 
     def __del__(self):
         if self.ser:
@@ -30,21 +29,23 @@ class SerialConnector(object):
     def waitForSerialData(self):
         receivedMessage = False
         currentChar = ""
+        data = ""
 
         while not receivedMessage:
             currentChar = self.ser.read(1).decode("UTF-8")
             if currentChar == self.startOfMessage:
-                self.payload = ""
+                data = ""
             elif currentChar == self.endOfMessage:
                 receivedMessage = True
             else:
-                self.payload += currentChar
+                data += currentChar
+        return data
 
     def waitForCode(self, code):
         ready = False
         while not ready:
-            self.waitForSerialData()
-            ready = self.payload == code
+            data = self.waitForSerialData()
+            ready = data == code
 
     def sendCode(self, code):
         message = self.startOfMessage + code + self.endOfMessage
