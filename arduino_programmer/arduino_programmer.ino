@@ -16,7 +16,7 @@ const int read_mode = 0;
 const int write_mode = 1;
 
 const int chunk_size = 16;
-byte chunk_buffer[chunk_size];
+byte data_buffer[chunk_size];
 
 // === FUNCTIONS ===
 
@@ -199,15 +199,15 @@ void writeMemory(int eprom_type, long program_size)
     bool transfer_is_done = false;
     while (!transfer_is_done)
     {
-        int rlen = Serial.readBytes(chunk_buffer, chunk_size);
+        int rlen = Serial.readBytes(data_buffer, chunk_size);
         for (int data_addr = 0; data_addr < rlen; data_addr++)
         {
             setAddress(data_index + data_addr);
             delayMicroseconds(2); // typical adress and data setup time
             for (int pin = lsb_pin; pin >= msb_pin; pin--)
             {
-                digitalWrite(pin, chunk_buffer[data_addr] & 1);
-                chunk_buffer[data_addr] >>= 1;
+                digitalWrite(pin, data_buffer[data_addr] & 1);
+                data_buffer[data_addr] >>= 1;
             }
             generateProgramPulse(eprom_type);
         }
