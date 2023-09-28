@@ -156,6 +156,18 @@ String waitForSerialMessage(void)
     return message;
 }
 
+byte readMemoryAtAddress(long address)
+{
+    setAddress(address);
+    delayMicroseconds(1); // typical access time is 200ns for EPROM
+    byte data = 0;
+    for (int pin = msb_pin; pin <= lsb_pin; pin++)
+    {
+        data = (data << 1) + digitalRead(pin);
+    }
+    return data;
+}
+
 void readMemory(int eprom_type, long memory_size)
 {
     changeAccessMode(read_mode, eprom_type);
@@ -167,13 +179,7 @@ void readMemory(int eprom_type, long memory_size)
         Serial.print(start_of_message);
         for (int addr = 0; addr < chunk_size; addr++)
         {
-            setAddress(bytes_read + addr);
-            delayMicroseconds(1); // typical access time is 200ns for EPROM
-            byte data = 0;
-            for (int pin = msb_pin; pin <= lsb_pin; pin++)
-            {
-                data = (data << 1) + digitalRead(pin);
-            }
+            byte data = readMemoryAtAddress(bytes_read + addr);
             Serial.println(data);
         }
         Serial.println(end_of_message);
