@@ -189,25 +189,25 @@ void writeMemory(int eprom_type, long program_size)
     changeAccessMode(write_mode, eprom_type);
     Serial.println("<WRITE-READY>");
 
-    long chunk_index = 0;
+    long data_index = 0;
     bool transfer_is_done = false;
     while (!transfer_is_done)
     {
         int rlen = Serial.readBytes(chunk_buffer, chunk_size);
-        for (int chunk_addr = 0; chunk_addr < rlen; chunk_addr++)
+        for (int data_addr = 0; data_addr < rlen; data_addr++)
         {
-            setAddress(chunk_index + chunk_addr);
+            setAddress(data_index + data_addr);
             delayMicroseconds(2); // typical adress and data setup time
             for (int pin = lsb_pin; pin >= msb_pin; pin--)
             {
-                digitalWrite(pin, chunk_buffer[chunk_addr] & 1);
-                chunk_buffer[chunk_addr] >>= 1;
+                digitalWrite(pin, chunk_buffer[data_addr] & 1);
+                chunk_buffer[data_addr] >>= 1;
             }
             generateProgramPulse(eprom_type);
         }
 
-        chunk_index += rlen;
-        transfer_is_done = (chunk_index == program_size);
+        data_index += rlen;
+        transfer_is_done = (data_index == program_size);
         Serial.println("<CONTINUE>");
     }
     Serial.println("<DONE>");
