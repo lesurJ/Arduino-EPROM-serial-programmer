@@ -156,6 +156,34 @@ String waitForSerialMessage(void)
     return message;
 }
 
+void QuickPro(int eprom_type, long address, byte input_data)
+{
+    bool error = false;
+    uint8_t x = 0;
+
+    while (x < 20)
+    {
+        digitalWrite(nPGM_PIN, LOW);
+        delay(1); // 1 ms pulse
+        digitalWrite(nPGM_PIN, HIGH);
+
+        x += 1;
+
+        // verify programming
+        changeAccessMode(read_mode, eprom_type);
+        byte programmed_data = readMemoryAtAddress(address);
+        changeAccessMode(write_mode, eprom_type);
+        if (programmed_data == input_data)
+        {
+            break;
+        }
+    }
+
+    digitalWrite(nPGM_PIN, LOW);
+    delay(x); // x ms pulse
+    digitalWrite(nPGM_PIN, HIGH);
+}
+
 byte readMemoryAtAddress(long address)
 {
     setAddress(address);
@@ -196,13 +224,15 @@ void writeMemory(int eprom_type, long program_size)
     Serial.println("<WRITE-READY>");
 
     long data_index = 0;
+    long current_address = 0;
     bool transfer_is_done = false;
     while (!transfer_is_done)
     {
         int rlen = Serial.readBytes(data_buffer, chunk_size);
         for (int data_addr = 0; data_addr < rlen; data_addr++)
         {
-            setAddress(data_index + data_addr);
+            current_address = data_index + data_addr;
+            setAddress(current_address);
             delayMicroseconds(2); // typical adress and data setup time
             for (int pin = lsb_pin; pin >= msb_pin; pin--)
             {
@@ -210,6 +240,7 @@ void writeMemory(int eprom_type, long program_size)
                 data_buffer[data_addr] >>= 1;
             }
             generateProgramPulse(eprom_type);
+            // QuickPro(eprom_type, current_address, data_buffer[data_addr]);
         }
 
         data_index += rlen;
