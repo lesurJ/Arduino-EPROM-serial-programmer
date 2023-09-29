@@ -26,6 +26,7 @@ void setAddress(long address)
     shiftOut(SERIAL_pin, SRCLK_pin, LSBFIRST, (byte)address);
     shiftOut(SERIAL_pin, SRCLK_pin, LSBFIRST, address >> 8);
     digitalWrite(RCLK_pin, HIGH);
+    delayMicroseconds(1); // typical access time is 200ns for EPROM
 }
 
 void changeDataPinMode(int mode)
@@ -162,10 +163,8 @@ String waitForSerialMessage(void)
     return message;
 }
 
-byte readMemoryAtAddress(long address)
+byte readDataPins(void)
 {
-    setAddress(address);
-    delayMicroseconds(1); // typical access time is 200ns for EPROM
     byte data = 0;
     for (int pin = msb_pin; pin <= lsb_pin; pin++)
     {
@@ -186,7 +185,8 @@ void readMemory(int eprom_type, long memory_size)
         Serial.print(start_of_message);
         for (int addr = 0; addr < chunk_size; addr++)
         {
-            byte data = readMemoryAtAddress(bytes_read + addr);
+            setAddress(bytes_read + addr);
+            byte data = readDataPins();
             Serial.println(data);
         }
         Serial.println(end_of_message);
@@ -195,6 +195,15 @@ void readMemory(int eprom_type, long memory_size)
         read_is_done = (bytes_read == memory_size);
     }
     Serial.println("<DONE>");
+}
+
+void writeDataPins(byte data)
+{
+    for (int pin = lsb_pin; pin >= msb_pin; pin--)
+    {
+        digitalWrite(pin, data & 1);
+        data >>= 1;
+    }
 }
 
 void writeMemory(int eprom_type, long program_size)
@@ -212,14 +221,8 @@ void writeMemory(int eprom_type, long program_size)
         int rlen = Serial.readBytes(data_buffer, chunk_size);
         for (int data_addr = 0; data_addr < rlen; data_addr++)
         {
-            current_address = data_index + data_addr;
-            setAddress(current_address);
-            delayMicroseconds(2); // typical adress and data setup time
-            for (int pin = lsb_pin; pin >= msb_pin; pin--)
-            {
-                digitalWrite(pin, data_buffer[data_addr] & 1);
-                data_buffer[data_addr] >>= 1;
-            }
+            setAddress(data_index + data_addr);
+            writeDataPins(data_buffer[data_addr]);
             generateProgramPulse(eprom_type);
         }
 
