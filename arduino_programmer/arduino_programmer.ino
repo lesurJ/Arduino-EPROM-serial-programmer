@@ -28,17 +28,31 @@ void setAddress(long address)
     digitalWrite(RCLK_pin, HIGH);
 }
 
-void changeAccessMode(int mode, int eprom_type)
+void changeDataPinMode(int mode)
+{
+    if (mode == read_mode)
+    {
+        for (int pin = msb_pin; pin <= lsb_pin; pin++)
+        {
+            pinMode(pin, INPUT);
+        }
+    }
+    else if (mode == write_mode)
+    {
+        for (int pin = msb_pin; pin <= lsb_pin; pin++)
+        {
+            pinMode(pin, OUTPUT);
+        }
+    }
+}
+
+void changeControlPinLevels(int mode, int eprom_type)
 {
     if (mode == read_mode)
     {
         digitalWrite(nCE_PIN, LOW);
         digitalWrite(nOE_PIN, LOW);
         digitalWrite(nPGM_PIN, HIGH);
-        for (int pin = msb_pin; pin <= lsb_pin; pin++)
-        {
-            pinMode(pin, INPUT);
-        }
     }
     else
     {
@@ -74,10 +88,6 @@ void changeAccessMode(int mode, int eprom_type)
             digitalWrite(nCE_PIN, HIGH);
             break;
         }
-        for (int pin = msb_pin; pin <= lsb_pin; pin++)
-        {
-            pinMode(pin, OUTPUT);
-        }
     }
 }
 
@@ -92,37 +102,33 @@ void generateProgramPulse(int eprom_type)
         break;
 
     case 32:
-        // digitalWrite(nCE_PIN, LOW);
+        digitalWrite(nCE_PIN, LOW);
         delay(50);
-        // digitalWrite(nCE_PIN, HIGH);
+        digitalWrite(nCE_PIN, HIGH);
         break;
 
     case 64:
-        // implement custom algo
-        // digitalWrite(nPGM_PIN, LOW);
+        digitalWrite(nPGM_PIN, LOW);
         delay(50);
-        // digitalWrite(nPGM_PIN, HIGH);
+        digitalWrite(nPGM_PIN, HIGH);
         break;
 
     case 128:
-        // implement custom algo
-        // digitalWrite(nPGM_PIN, LOW);
-        delay(50);
-        // digitalWrite(nPGM_PIN, HIGH);
+        digitalWrite(nPGM_PIN, LOW);
+        delayMicroseconds(100);
+        digitalWrite(nPGM_PIN, HIGH);
         break;
 
     case 256:
-        // implement custom algo
-        // digitalWrite(nCE_PIN, LOW);
-        delay(50);
-        // digitalWrite(nCE_PIN, HIGH);
+        digitalWrite(nCE_PIN, LOW);
+        delayMicroseconds(100);
+        digitalWrite(nCE_PIN, HIGH);
         break;
 
     case 512:
-        // implement custom algo
-        // digitalWrite(nCE_PIN, LOW);
-        delay(50);
-        // digitalWrite(nCE_PIN, HIGH);
+        digitalWrite(nCE_PIN, LOW);
+        delayMicroseconds(100);
+        digitalWrite(nCE_PIN, HIGH);
         break;
     }
 }
@@ -156,34 +162,6 @@ String waitForSerialMessage(void)
     return message;
 }
 
-void QuickPro(int eprom_type, long address, byte input_data)
-{
-    bool error = false;
-    uint8_t x = 0;
-
-    while (x < 20)
-    {
-        digitalWrite(nPGM_PIN, LOW);
-        delay(1); // 1 ms pulse
-        digitalWrite(nPGM_PIN, HIGH);
-
-        x += 1;
-
-        // verify programming
-        changeAccessMode(read_mode, eprom_type);
-        byte programmed_data = readMemoryAtAddress(address);
-        changeAccessMode(write_mode, eprom_type);
-        if (programmed_data == input_data)
-        {
-            break;
-        }
-    }
-
-    digitalWrite(nPGM_PIN, LOW);
-    delay(x); // x ms pulse
-    digitalWrite(nPGM_PIN, HIGH);
-}
-
 byte readMemoryAtAddress(long address)
 {
     setAddress(address);
@@ -198,7 +176,8 @@ byte readMemoryAtAddress(long address)
 
 void readMemory(int eprom_type, long memory_size)
 {
-    changeAccessMode(read_mode, eprom_type);
+    changeDataPinMode(read_mode);
+    changeControlPinLevels(read_mode, eprom_type);
 
     long bytes_read = 0;
     bool read_is_done = false;
@@ -220,7 +199,9 @@ void readMemory(int eprom_type, long memory_size)
 
 void writeMemory(int eprom_type, long program_size)
 {
-    changeAccessMode(write_mode, eprom_type);
+    changeDataPinMode(write_mode);
+    changeControlPinLevels(write_mode, eprom_type);
+
     Serial.println("<WRITE-READY>");
 
     long data_index = 0;
@@ -240,7 +221,6 @@ void writeMemory(int eprom_type, long program_size)
                 data_buffer[data_addr] >>= 1;
             }
             generateProgramPulse(eprom_type);
-            // QuickPro(eprom_type, current_address, data_buffer[data_addr]);
         }
 
         data_index += rlen;
