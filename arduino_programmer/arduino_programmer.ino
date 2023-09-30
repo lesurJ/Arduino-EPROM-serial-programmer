@@ -69,20 +69,20 @@ void changeControlPinLevels(int mode, int eprom_type)
             break;
 
         case 64:
-            digitalWrite(nCE_PIN, LOW);
-            digitalWrite(nOE_PIN, HIGH);
             digitalWrite(nPGM_PIN, HIGH);
+            digitalWrite(nOE_PIN, HIGH);
+            digitalWrite(nCE_PIN, LOW);
             break;
 
         case 128:
-            digitalWrite(nCE_PIN, LOW);
-            digitalWrite(nOE_PIN, HIGH);
             digitalWrite(nPGM_PIN, HIGH);
+            digitalWrite(nOE_PIN, HIGH);
+            digitalWrite(nCE_PIN, LOW);
             break;
 
         case 256:
-            digitalWrite(nCE_PIN, HIGH);
             digitalWrite(nOE_PIN, HIGH);
+            digitalWrite(nCE_PIN, HIGH);
             break;
 
         case 512:
@@ -163,6 +163,127 @@ String waitForSerialMessage(void)
     return message;
 }
 
+void QuickPro(int eprom_type, byte input_data)
+{
+    // timing as specified in the datasheet
+    const int tDS_us = 2;  // data setup time
+    const int tPW_ms = 1;  // PGM pulse width
+    const int tDH_us = 2;  // data hold time
+    const int tOES_us = 2; // output enable setup time
+    const int tOE_us = 2;  // data valid from output enable
+
+    unsigned long x = 0;
+    while (x < 20)
+    {
+        writeDataPins(input_data);
+
+        delayMicroseconds(tDS_us);
+        digitalWrite(nPGM_PIN, LOW);
+        delay(tPW_ms);
+        digitalWrite(nPGM_PIN, HIGH);
+        delayMicroseconds(tDH_us);
+
+        x += 1;
+        delayMicroseconds(tOES_us);
+
+        // verify programming
+        digitalWrite(nOE_PIN, LOW);
+        changeDataPinMode(read_mode);
+        delayMicroseconds(tOE_us);
+        byte programmed_data = readDataPins();
+        digitalWrite(nOE_PIN, HIGH);
+        changeDataPinMode(write_mode);
+
+        if (programmed_data == input_data)
+        {
+            break;
+        }
+    }
+
+    digitalWrite(nPGM_PIN, LOW);
+    delay(x * tPW_ms);
+    digitalWrite(nPGM_PIN, HIGH);
+}
+
+void FastProgrammingAlgorithm(int eprom_type, byte input_data)
+{
+    // timing as specified in the datasheet
+    const unsigned int tDS_us = 2;  // data setup time
+    const unsigned long tPW_ms = 1; // PGM pulse width
+    const unsigned int tDH_us = 2;  // data hold time
+    const unsigned int tOES_us = 2; // output enable setup time
+    const unsigned int tOE_us = 2;  // data valid from output enable
+
+    unsigned long n = 0;
+    while (n < 25)
+    {
+        writeDataPins(input_data);
+
+        delayMicroseconds(tDS_us);
+        digitalWrite(nPGM_PIN, LOW);
+        delay(tPW_ms);
+        digitalWrite(nPGM_PIN, HIGH);
+        delayMicroseconds(tDH_us);
+
+        n += 1;
+        delayMicroseconds(tOES_us);
+
+        // Verify programming
+        digitalWrite(nOE_PIN, LOW);
+        changeDataPinMode(read_mode);
+        delayMicroseconds(tOE_us);
+        byte programmed_data = readDataPins();
+        digitalWrite(nOE_PIN, HIGH);
+        changeDataPinMode(write_mode);
+
+        if (programmed_data == input_data)
+        {
+            break;
+        }
+    }
+    digitalWrite(nPGM_PIN, LOW);
+    delay(3 * n);
+    digitalWrite(nPGM_PIN, HIGH);
+}
+
+void PrestoII(int eprom_type, byte input_data)
+{
+    // timing as specified in the datasheet
+    const unsigned int tDS_us = 2;   // data setup time
+    const unsigned int tPW_us = 100; // PGM pulse width
+    const unsigned int tDH_us = 2;   // data hold time
+    const unsigned int tOES_us = 2;  // output enable setup time
+    const unsigned int tOE_us = 1;   // data valid from output enable
+
+    int n = 0;
+    while (n < 25)
+    {
+        writeDataPins(input_data);
+
+        delayMicroseconds(tDS_us);
+        digitalWrite(nCE_PIN, LOW);
+        delayMicroseconds(tPW_us);
+        digitalWrite(nCE_PIN, HIGH);
+        delayMicroseconds(tDH_us);
+
+        n += 1;
+        delayMicroseconds(tOES_us);
+
+        // Verify programming
+        digitalWrite(nOE_PIN, LOW);
+        changeDataPinMode(read_mode);
+        delayMicroseconds(tOE_us);
+        byte programmed_data = readDataPins();
+        digitalWrite(nOE_PIN, HIGH);
+        changeDataPinMode(write_mode);
+
+        if (programmed_data == input_data)
+        {
+            break;
+        }
+    }
+}
+
 byte readDataPins(void)
 {
     byte data = 0;
@@ -213,17 +334,31 @@ void writeMemory(int eprom_type, long program_size)
 
     Serial.println("<WRITE-READY>");
 
+    long start_addr = 0;
     long data_index = 0;
-    long current_address = 0;
     bool transfer_is_done = false;
     while (!transfer_is_done)
     {
         int rlen = Serial.readBytes(data_buffer, chunk_size);
         for (int data_addr = 0; data_addr < rlen; data_addr++)
         {
-            setAddress(data_index + data_addr);
-            writeDataPins(data_buffer[data_addr]);
-            generateProgramPulse(eprom_type);
+            setAddress(start_addr + data_index + data_addr);
+
+            // generic programming algo
+
+            // writeDataPins(data_buffer[data_addr]);
+            // delayMicroseconds(5);
+            // generateProgramPulse(eprom_type);
+            // delayMicroseconds(5);
+
+            // manufacturer's programming algorithm
+
+            // not working for types 64 and 128
+            // QuickPro(eprom_type, data_buffer[data_addr]);
+            // FastProgrammingAlgorithm(eprom_type, data_buffer[data_addr]);
+
+            // workign for type ST 256
+            // PrestoII(eprom_type, data_buffer[data_addr]);
         }
 
         data_index += rlen;
