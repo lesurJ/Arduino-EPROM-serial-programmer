@@ -2,6 +2,8 @@
 
 A project to program vintage EPROMs with modern Python and Arduino.
 
+/!\ Work in progress. New version will include voltage regulators to generate the required programming voltages.
+
 ![board](board.jpg)
 
 ## Introduction
