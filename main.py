@@ -117,6 +117,9 @@ if __name__ == "__main__":
     serialPort = [
         item for item in os.listdir(folder) if item.startswith("tty.usbserial")
     ]
+    if len(serialPort) == 0:
+        print("No serial port is a tty.usbserial; exiting...")
+        exit()
 
     if args.filename is not None:
         programSize, programCode = getProgramCode(args.filename)
